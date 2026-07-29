@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Questora — build text adventures with your own local AI</title>
+<meta name="description" content="A text adventure engine that runs on your own local LLM. No cloud, no tokens, no subscription. Play free. Unlock Creator once to draft whole worlds from a prompt and finish them your way." />
+<link rel="icon" type="image/png" href="questora_favicon_96x96.png" />
+
+<!-- ============================================================
+     CLICK / PAGEVIEW ANALYTICS  (optional but recommended)
+     GoatCounter is free + privacy-friendly and gives you BOTH:
+       • pageviews  (the denominator for your ≥5% CTA-click test)
+       • the "cta_click_creator" event (the numerator)
+     1. Make a free site at https://www.goatcounter.com
+     2. Uncomment the line below and replace YOURCODE.
+     ============================================================ -->
+<!-- <script data-goatcounter="https://YOURCODE.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script> -->
+
+<style>
+:root{
+  --ground:#131011; --panel:#1c1719; --panel-2:#231c1e; --raise:#2c2325;
+  --ink:#dcd4d1; --ink-strong:#f6f0ed; --muted:#9b8e8b; --faint:#6a5e5c;
+  --border:#332827; --border-soft:#241d1e;
+  --accent:#de0101; --accent-hover:#ff2d1c; --accent-text:#ff5347; --on-accent:#fff4f3;
+  --glow:rgba(222,1,1,.30);
+  --good:#4fb0a0;
+  --font-display:'Iowan Old Style','Palatino Linotype',Palatino,'Book Antiqua',Georgia,serif;
+  --font-body:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  --font-mono:ui-monospace,'SF Mono','JetBrains Mono','Cascadia Code',Consolas,'Liberation Mono',monospace;
+  --maxw:1080px;
+  --r:14px;
+}
+@media (prefers-color-scheme: light){
+  :root{
+    --ground:#f2ead9; --panel:#fffdf7; --panel-2:#faf3e4; --raise:#f4ecd8;
+    --ink:#241d1b; --ink-strong:#150f0e; --muted:#6f645f; --faint:#a2978c;
+    --border:#e5d9c3; --border-soft:#efe7d4;
+    --accent:#cf0606; --accent-hover:#a90606; --accent-text:#bd0808; --on-accent:#fffaf9;
+    --glow:rgba(207,6,6,.16);
+    --good:#3a8577;
+  }
+}
+:root[data-theme="light"]{
+  --ground:#f2ead9; --panel:#fffdf7; --panel-2:#faf3e4; --raise:#f4ecd8;
+  --ink:#241d1b; --ink-strong:#150f0e; --muted:#6f645f; --faint:#a2978c;
+  --border:#e5d9c3; --border-soft:#efe7d4;
+  --accent:#cf0606; --accent-hover:#a90606; --accent-text:#bd0808; --on-accent:#fffaf9;
+  --glow:rgba(207,6,6,.16); --good:#3a8577;
+}
+:root[data-theme="dark"]{
+  --ground:#131011; --panel:#1c1719; --panel-2:#231c1e; --raise:#2c2325;
+  --ink:#dcd4d1; --ink-strong:#f6f0ed; --muted:#9b8e8b; --faint:#6a5e5c;
+  --border:#332827; --border-soft:#241d1e;
+  --accent:#de0101; --accent-hover:#ff2d1c; --accent-text:#ff5347; --on-accent:#fff4f3;
+  --glow:rgba(222,1,1,.30); --good:#4fb0a0;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{
+  background:var(--ground);color:var(--ink);
+  font-family:var(--font-body);font-size:1.02rem;line-height:1.65;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+a{color:inherit}
+h1,h2,h3{font-family:var(--font-display);color:var(--ink-strong);text-wrap:balance;line-height:1.1;font-weight:600}
+.eyebrow{font-family:var(--font-mono);font-size:.74rem;letter-spacing:.18em;text-transform:uppercase;color:var(--accent-text)}
+.lead{font-size:clamp(1.05rem,2vw,1.22rem);color:var(--ink);line-height:1.55;max-width:60ch}
+
+.btn{
+  font-family:var(--font-body);font-size:1rem;font-weight:600;
+  border:1px solid transparent;border-radius:10px;padding:.8em 1.3em;
+  cursor:pointer;display:inline-flex;align-items:center;gap:.55em;
+  text-decoration:none;transition:transform .15s ease,box-shadow .15s ease,background .15s ease,border-color .15s,color .15s;
+  white-space:nowrap;
+}
+.btn:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.btn-primary{background:var(--accent);color:var(--on-accent);box-shadow:0 6px 22px -8px var(--glow)}
+.btn-primary:hover{background:var(--accent-hover);transform:translateY(-2px);box-shadow:0 12px 30px -10px var(--glow)}
+.btn-primary .price{font-family:var(--font-mono);opacity:.85;font-weight:500}
+.btn-ghost{background:transparent;color:var(--ink-strong);border-color:var(--border)}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent-text)}
+.btn-lg{font-size:1.08rem;padding:.95em 1.6em}
+
+header.nav{
+  position:sticky;top:0;z-index:40;
+  background:color-mix(in srgb, var(--ground) 86%, transparent);
+  backdrop-filter:blur(10px);border-bottom:1px solid var(--border-soft);
+}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;height:64px;gap:16px}
+.brand{display:flex;align-items:center;text-decoration:none}
+.brand .logo{height:30px;width:auto;display:block}
+.nav-right{display:flex;align-items:center;gap:12px}
+.theme-toggle{background:transparent;border:1px solid var(--border);color:var(--muted);width:38px;height:38px;border-radius:9px;cursor:pointer;display:grid;place-items:center;transition:color .15s,border-color .15s}
+.theme-toggle:hover{color:var(--accent-text);border-color:var(--accent)}
+.theme-toggle:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.nav .btn{padding:.6em 1.05em;font-size:.94rem}
+@media (max-width:640px){.nav .btn-ghost{display:none}}
+
+.hero{padding:clamp(48px,8vw,96px) 0 clamp(40px,6vw,72px)}
+.hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(32px,5vw,64px);align-items:center}
+@media (max-width:880px){.hero-grid{grid-template-columns:1fr;gap:40px}}
+.hero h1{font-size:clamp(2.3rem,5.2vw,3.9rem);margin:.35em 0 .5em}
+.hero h1 em{font-style:normal;color:var(--accent-text)}
+.hero .lead{margin-bottom:1.8em}
+.cta-row{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.trust{margin-top:1.6em;font-family:var(--font-mono);font-size:.82rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:.4em 1.1em}
+.trust span{display:inline-flex;align-items:center;gap:.45em}
+.trust .dot{width:6px;height:6px;border-radius:50%;background:var(--good)}
+
+.terminal{
+  background:var(--panel);border:1px solid var(--border);border-radius:var(--r);
+  box-shadow:0 30px 70px -30px rgba(0,0,0,.5), 0 0 0 1px var(--border-soft) inset;
+  overflow:hidden;font-family:var(--font-mono);font-size:.92rem;
+}
+.term-bar{display:flex;align-items:center;gap:8px;padding:11px 14px;background:var(--panel-2);border-bottom:1px solid var(--border-soft)}
+.term-bar .b{width:11px;height:11px;border-radius:50%;background:var(--faint);opacity:.5}
+.term-bar .b:nth-child(1){background:var(--accent);opacity:.85}
+.term-bar .title{margin-left:8px;font-size:.76rem;color:var(--muted);letter-spacing:.02em}
+.term-body{padding:20px 20px 24px;min-height:268px;line-height:1.7}
+.term-body .out{color:var(--ink);white-space:pre-wrap}
+.term-body .cmd{color:var(--ink-strong)}
+.term-body .prompt{color:var(--accent-text);user-select:none}
+.term-body .quote{color:var(--accent-text)}
+.term-body .ok{color:var(--good)}
+.term-body .dim{color:var(--muted)}
+.caret{display:inline-block;width:.6em;height:1.05em;background:var(--accent-text);vertical-align:-2px;animation:blink 1s steps(1) infinite;margin-left:1px}
+@keyframes blink{50%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.caret{animation:none}}
+
+section.band{padding:clamp(56px,8vw,92px) 0;border-top:1px solid var(--border-soft)}
+.sec-head{max-width:62ch;margin-bottom:clamp(28px,4vw,44px)}
+.sec-head h2{font-size:clamp(1.7rem,3.6vw,2.5rem);margin:.35em 0 .35em}
+.sec-head h2 em{font-style:normal;color:var(--accent-text)}
+.sec-head p{color:var(--muted);font-size:1.08rem}
+
+.pain{background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:var(--r);padding:clamp(24px,4vw,38px)}
+.pain blockquote{font-family:var(--font-display);font-size:clamp(1.3rem,2.6vw,1.7rem);line-height:1.35;color:var(--ink-strong);font-style:italic}
+.pain cite{display:block;margin-top:1em;font-style:normal;font-family:var(--font-mono);font-size:.82rem;color:var(--muted)}
+
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+@media (max-width:820px){.cards{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:26px 24px;display:flex;flex-direction:column;gap:12px;transition:border-color .2s,transform .2s}
+.card:hover{border-color:var(--accent);transform:translateY(-3px)}
+.card .ic{width:40px;height:40px;border-radius:10px;background:var(--raise);display:grid;place-items:center;color:var(--accent-text)}
+.card h3{font-size:1.22rem}
+.card p{color:var(--muted);font-size:.97rem}
+.card .tag{margin-top:auto;font-family:var(--font-mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-text);padding-top:8px}
+
+.tiers{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media (max-width:820px){.tiers{grid-template-columns:1fr}}
+.tier{border:1px solid var(--border);border-radius:var(--r);padding:28px 26px;background:var(--panel);display:flex;flex-direction:column}
+.tier.creator{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset, 0 24px 60px -34px var(--glow)}
+.tier .kicker{font-family:var(--font-mono);font-size:.74rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.tier.creator .kicker{color:var(--accent-text)}
+.tier h3{font-size:1.5rem;margin:.15em 0 .1em}
+.tier .cost{font-family:var(--font-mono);font-size:1.05rem;color:var(--ink);margin-bottom:1.1em}
+.tier .cost b{color:var(--ink-strong);font-size:1.3rem}
+.tier ul{list-style:none;display:flex;flex-direction:column;gap:.7em;margin-bottom:1.6em}
+.tier li{display:flex;gap:.7em;align-items:flex-start;font-size:.98rem;color:var(--ink)}
+.tier li svg{flex:0 0 auto;margin-top:.28em;color:var(--accent-text)}
+.tier .foot{margin-top:auto}
+.tier .foot .note{font-size:.82rem;color:var(--muted);margin-top:.9em;font-family:var(--font-mono)}
+
+.compare{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;align-items:stretch}
+@media (max-width:820px){.compare{grid-template-columns:1fr}}
+.compare .col{border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.compare .col header{padding:16px 20px;font-family:var(--font-mono);font-size:.82rem;letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--border-soft);background:var(--panel-2)}
+.compare .col.them header{color:var(--muted)}
+.compare .col.us header{color:var(--accent-text);background:var(--panel)}
+.compare .row{display:flex;justify-content:space-between;gap:16px;padding:14px 20px;border-bottom:1px solid var(--border-soft);font-size:.95rem}
+.compare .row:last-child{border-bottom:0}
+.compare .row .k{color:var(--muted)}
+.compare .row .v{font-family:var(--font-mono);text-align:right}
+.compare .us .v{color:var(--ink-strong)}
+.big-price{font-family:var(--font-mono);text-align:center;margin-top:26px;color:var(--muted);font-size:.95rem}
+.big-price b{color:var(--accent-text)}
+
+.faq{display:flex;flex-direction:column;gap:2px;max-width:760px}
+details{border:1px solid var(--border);border-radius:11px;background:var(--panel);overflow:hidden}
+details+details{margin-top:10px}
+summary{cursor:pointer;padding:18px 22px;font-family:var(--font-display);font-size:1.12rem;color:var(--ink-strong);list-style:none;display:flex;justify-content:space-between;align-items:center;gap:16px}
+summary::-webkit-details-marker{display:none}
+summary .plus{color:var(--accent-text);font-family:var(--font-mono);font-size:1.3rem;transition:transform .2s;flex:0 0 auto}
+details[open] summary .plus{transform:rotate(45deg)}
+details .ans{padding:0 22px 20px;color:var(--muted);font-size:.98rem;line-height:1.6}
+summary:focus-visible{outline:3px solid var(--accent);outline-offset:-3px;border-radius:11px}
+
+.final{text-align:center;padding:clamp(60px,9vw,110px) 0}
+.final h2{font-size:clamp(2rem,4.5vw,3.1rem);margin-bottom:.4em}
+.final p{color:var(--muted);max-width:52ch;margin:0 auto 2em;font-size:1.1rem}
+
+footer.site{border-top:1px solid var(--border-soft);padding:40px 0;color:var(--muted);font-size:.9rem}
+.foot-inner{display:flex;flex-wrap:wrap;justify-content:space-between;gap:16px;align-items:center}
+.foot-inner a{color:var(--muted);text-decoration:none;border-bottom:1px solid transparent}
+.foot-inner a:hover{color:var(--accent-text);border-color:var(--accent)}
+.dev-note{font-family:var(--font-mono);font-size:.78rem;color:var(--faint)}
+
+.reveal{opacity:0;transform:translateY(16px);transition:opacity .6s ease,transform .6s ease}
+.reveal.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}}
+
+.modal-back{position:fixed;inset:0;z-index:100;background:rgba(6,4,4,.72);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:20px}
+.modal-back.open{display:flex}
+.modal{background:var(--panel);border:1px solid var(--border);border-radius:16px;max-width:460px;width:100%;padding:32px 30px;box-shadow:0 40px 90px -30px rgba(0,0,0,.6);position:relative}
+.modal .x{position:absolute;top:14px;right:14px;background:transparent;border:0;color:var(--muted);cursor:pointer;font-size:1.4rem;line-height:1;width:34px;height:34px;border-radius:8px}
+.modal .x:hover{color:var(--ink-strong);background:var(--raise)}
+.modal .eyebrow{margin-bottom:.7em}
+.modal h3{font-size:1.5rem;margin-bottom:.4em}
+.modal p.sub{color:var(--muted);font-size:.97rem;margin-bottom:1.4em}
+.field{display:flex;flex-direction:column;gap:8px}
+.field input{font-family:var(--font-body);font-size:1rem;padding:.85em 1em;border-radius:10px;border:1px solid var(--border);background:var(--ground);color:var(--ink-strong)}
+.field input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--glow)}
+.modal .btn-primary{width:100%;justify-content:center;margin-top:14px}
+.modal .fineprint{font-size:.78rem;color:var(--faint);margin-top:12px;text-align:center;font-family:var(--font-mono)}
+.modal .success{text-align:center}
+.modal .success .check{width:56px;height:56px;border-radius:50%;background:var(--raise);color:var(--good);display:grid;place-items:center;margin:0 auto 18px}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a href="#top" class="brand" aria-label="Questora home">
+      <img class="logo" src="questora_horizontal_on_transparent.png" alt="Questora" />
+    </a>
+    <div class="nav-right">
+      <a href="#local" class="btn btn-ghost">Why local?</a>
+      <button class="theme-toggle" id="themeBtn" aria-label="Toggle light and dark theme" title="Toggle theme">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+      <button class="btn btn-primary" data-open="creator">Unlock Creator <span class="price">$12.99</span></button>
+    </div>
+  </div>
+</header>
+
+<a id="top"></a>
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="eyebrow">Local-AI interactive fiction</span>
+      <h1>Type a world into being — then make it <em>yours</em>.</h1>
+      <p class="lead">Questora is a text-adventure engine powered by the AI model running on <strong>your own</strong> computer. No cloud. No tokens. No monthly bill. Play the sample adventures free, then unlock Creator to draft a whole world from a prompt — and shape it into a finished adventure.</p>
+      <div class="cta-row">
+        <button class="btn btn-primary btn-lg" data-open="creator">Unlock Creator <span class="price">— $12.99 once</span></button>
+        <button class="btn btn-ghost btn-lg" data-open="player">Get the free player</button>
+      </div>
+      <div class="trust">
+        <span><span class="dot"></span> Runs offline</span>
+        <span><span class="dot"></span> Your model, your hardware</span>
+        <span><span class="dot"></span> Pay once, own it</span>
+      </div>
+    </div>
+
+    <div class="terminal" aria-hidden="true">
+      <div class="term-bar"><span class="b"></span><span class="b"></span><span class="b"></span><span class="title">questora — the keeper's landing</span></div>
+      <div class="term-body"><div id="termOut" class="out"></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">The problem with AI adventures</span>
+      <h2>You loved it — until the meter started ticking.</h2>
+      <p>Every cloud AI game does the same thing: hooks you on the story, then charges you by the message or locks you into a subscription. The moment it gets good, you're rationing tokens.</p>
+    </div>
+    <div class="pain reveal">
+      <blockquote>"I love this game but the token system ruins it. Just when the story gets interesting, I run out and have to wait. I'd rather pay once and play unlimited."</blockquote>
+      <cite>— a recurring complaint across AI Dungeon, AI Game Master &amp; NovelAI communities</cite>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">What the $12.99 unlock gives you</span>
+      <h2>The free build lets you play. Creator lets you <em>make</em>.</h2>
+      <p>One unlock turns Questora into an authoring studio — an AI collaborator that drafts the raw material, plus the tools to shape it into a real adventure. Nothing ever phones home.</p>
+    </div>
+    <div class="cards">
+      <div class="card reveal">
+        <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.6L18.5 9 15 12.3l.9 5-3.9-2.3L8.1 17.3l.9-5L5.5 9l4.6-1.4z"/></svg></div>
+        <h3>Prompt-to-draft Build Mode</h3>
+        <p>Describe a place in a sentence and your local model drafts the rooms, items and characters — a fast first pass you then edit into the adventure you actually want.</p>
+        <span class="tag">AI drafts · you direct</span>
+      </div>
+      <div class="card reveal">
+        <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v14H4z"/><path d="M4 9h16M9 9v9"/></svg></div>
+        <h3>Hands-on editors</h3>
+        <p>Form-based room, item and NPC editors for precise control. Wire up puzzles, containers, keys and branching dialogue — without touching code.</p>
+        <span class="tag">Manual</span>
+      </div>
+      <div class="card reveal">
+        <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+        <h3>The Solver</h3>
+        <p>Auto-plays your finished adventure to prove it's actually completable — catching soft-locks and dead ends before a player ever hits them, and writing a walkthrough for free.</p>
+        <span class="tag">Quality check</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Play free · Create paid</span>
+      <h2>A demo you'll actually enjoy — and a tool worth owning.</h2>
+      <p>The free player is the whole playing experience, not a crippled trial. Creator is a one-time unlock, not a subscription.</p>
+    </div>
+    <div class="tiers">
+      <div class="tier reveal">
+        <span class="kicker">Questora Player</span>
+        <h3>Free</h3>
+        <div class="cost">Download &amp; keep · <b>$0</b></div>
+        <ul>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Unlimited offline play, no tokens ever</li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Chat freely with characters — open-ended, in-character, on your own model</li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Bundled handcrafted adventures</li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Save &amp; load anywhere</li>
+        </ul>
+        <div class="foot">
+          <button class="btn btn-ghost" style="width:100%;justify-content:center" data-open="player">Get the free player</button>
+        </div>
+      </div>
+      <div class="tier creator reveal">
+        <span class="kicker">Questora Creator</span>
+        <h3>One unlock</h3>
+        <div class="cost"><b>$12.99</b> once — no subscription</div>
+        <ul>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> <strong>Everything in the free player</strong></li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Prompt-to-draft AI Build Mode</li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Full manual room / item / NPC editors</li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> The Solver + auto-walkthroughs</li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Python tools bundle (maps, validation)</li>
+        </ul>
+        <div class="foot">
+          <button class="btn btn-primary" style="width:100%;justify-content:center" data-open="creator">Unlock Creator <span class="price">— $12.99</span></button>
+          <div class="note">Founding-creator price for the launch list ↓</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="local">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Why on your own machine</span>
+      <h2>Own the tool. Own the models. Own the stories.</h2>
+      <p>Cloud and text adventures share one flaw — the day the service shuts off or hikes its price, your worlds go with it. Questora doesn't.</p>
+    </div>
+    <div class="compare reveal">
+      <div class="col them">
+        <header>Cloud AI adventures</header>
+        <div class="row"><span class="k">Cost</span><span class="v">$10–$50 / month</span></div>
+        <div class="row"><span class="k">When you stop paying</span><span class="v">Access ends</span></div>
+        <div class="row"><span class="k">Your stories</span><span class="v">On their servers</span></div>
+        <div class="row"><span class="k">Model choice</span><span class="v">Theirs only</span></div>
+        <div class="row"><span class="k">Offline</span><span class="v">No</span></div>
+        <div class="row"><span class="k">Content filter</span><span class="v">Their rules</span></div>
+      </div>
+      <div class="col us">
+        <header>Questora</header>
+        <div class="row"><span class="k">Cost</span><span class="v">$12.99 once</span></div>
+        <div class="row"><span class="k">When you stop paying</span><span class="v">You still own it</span></div>
+        <div class="row"><span class="k">Your stories</span><span class="v">On your disk</span></div>
+        <div class="row"><span class="k">Model choice</span><span class="v">Any GGUF you like</span></div>
+        <div class="row"><span class="k">Offline</span><span class="v">Always</span></div>
+        <div class="row"><span class="k">Content filter</span><span class="v">You decide</span></div>
+      </div>
+    </div>
+    <p class="big-price">One month of the average AI adventure subscription costs more than <b>owning Questora Creator forever</b>.</p>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Straight answers</span>
+      <h2>Questions before you jump in.</h2>
+    </div>
+    <div class="faq reveal">
+      <details>
+        <summary>Do I need to know how to code? <span class="plus">+</span></summary>
+        <div class="ans">No. Build Mode drafts the adventure from your description, and the editors are all forms — rooms, items, characters, puzzles. If you can describe a place and edit a paragraph, you can build one.</div>
+      </details>
+      <details>
+        <summary>Does the AI just make the whole game for me? <span class="plus">+</span></summary>
+        <div class="ans"><strong>No — and that's the honest pitch.</strong> Build Mode gives you a strong first draft fast: rooms, items, characters, starter dialogue. You then connect, tune and polish it into a finished adventure. Think collaborator, not vending machine — and the built-in Solver checks that your result is actually completable.</div>
+      </details>
+      <details>
+        <summary>Are the characters "smart"? <span class="plus">+</span></summary>
+        <div class="ans">The story and hints are authored by whoever built the adventure. On top of that, you can free-chat with characters and your local model improvises in-character replies. They're conversational flavor — not puzzle-solving agents that track the whole game state.</div>
+      </details>
+      <details>
+        <summary>What do I need to run the AI? <span class="plus">+</span></summary>
+        <div class="ans">A regular desktop or laptop. Questora runs small local models (a 1–3B GGUF model works well) on CPU, and faster if you have a GPU. You download a model once and never pay per use. Nothing is sent to the cloud.</div>
+      </details>
+      <details>
+        <summary>Is the free player really free — or a trial? <span class="plus">+</span></summary>
+        <div class="ans">Genuinely free and unlimited. It's the full playing experience with the bundled adventures. Creator is the separate one-time unlock that adds the authoring tools.</div>
+      </details>
+      <details>
+        <summary>When can I actually buy Creator? <span class="plus">+</span></summary>
+        <div class="ans"><strong>Honest answer:</strong> Questora Creator is in active development and not on sale yet. This page is how I gauge who wants it — join the launch list and you'll get first access, plus a founding-creator discount when it ships. No charge today.</div>
+      </details>
+      <details>
+        <summary>Subscription? Ongoing fees? <span class="plus">+</span></summary>
+        <div class="ans">None. $12.99 is a one-time unlock. You own the version you buy, it runs offline forever, and updates during launch are included.</div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section class="final">
+  <div class="wrap">
+    <span class="eyebrow reveal">Build your first world</span>
+    <h2 class="reveal">Get on the launch list.</h2>
+    <p class="reveal">Founding creators get first access and a discount when Creator ships. One email when it's ready — nothing else.</p>
+    <div class="reveal" style="display:flex;justify-content:center;gap:14px;flex-wrap:wrap">
+      <button class="btn btn-primary btn-lg" data-open="creator">Unlock Creator <span class="price">— $12.99</span></button>
+      <button class="btn btn-ghost btn-lg" data-open="player">Just the free player</button>
+    </div>
+  </div>
+</section>
+
+<footer class="site">
+  <div class="wrap foot-inner">
+    <div>Questora — a local-AI text adventure engine. A passion project.</div>
+    <div style="display:flex;gap:20px;align-items:center">
+      <a href="#top">Back to top</a>
+      <span class="dev-note">Creator in development · no payment collected</span>
+    </div>
+  </div>
+</footer>
+
+<div class="modal-back" id="modalBack" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal">
+    <button class="x" id="modalX" aria-label="Close">×</button>
+    <div id="modalForm">
+      <span class="eyebrow" id="modalKicker">Launch list</span>
+      <h3 id="modalTitle">Get founding access to Creator</h3>
+      <p class="sub" id="modalSub"></p>
+      <form id="leadForm">
+        <div class="field">
+          <input type="email" name="email" id="leadEmail" placeholder="you@example.com" required autocomplete="email" />
+          <input type="hidden" name="interest" id="leadInterest" value="creator" />
+        </div>
+        <button type="submit" class="btn btn-primary" id="leadSubmit">Join the launch list</button>
+        <div class="fineprint">No spam · no charge today · unsubscribe anytime</div>
+      </form>
+    </div>
+    <div id="modalSuccess" class="success hidden">
+      <div class="check"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+      <h3>You're on the list.</h3>
+      <p class="sub" style="margin-bottom:0">Thanks — you'll be among the first to know when Questora Creator is ready, with your founding-creator discount attached.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const CONFIG = {
+  // 1) EMAIL CAPTURE: make a free form at https://formspree.io , paste its endpoint here
+  //    (looks like https://formspree.io/f/abcdwxyz). Until then, the form shows success but stores nothing.
+  formEndpoint: "https://formspree.io/f/REPLACE_WITH_YOUR_ID",
+  // 2) FREE PLAYER: once it's live (itch.io page or GitHub release), paste its URL here.
+  //    The "Get the free player" buttons then link straight to the download instead of
+  //    collecting an email. Leave blank to keep collecting emails for now.
+  playerDownloadUrl: "https://questora.itch.io/questora-adventure-game-engine-with-ai",
+  // 3) The discount you promise founding-list members (shown in the modal).
+  foundingOffer: "50% off — $6.49 for founding creators"
+};
+
+(function(){
+  const root=document.documentElement, btn=document.getElementById('themeBtn');
+  const saved=localStorage.getItem('q-theme');
+  if(saved){root.setAttribute('data-theme',saved);}
+  btn.addEventListener('click',()=>{
+    const cur=root.getAttribute('data-theme')
+      || (matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');
+    const next=cur==='dark'?'light':'dark';
+    root.setAttribute('data-theme',next);
+    localStorage.setItem('q-theme',next);
+  });
+})();
+
+function track(name){
+  try{ if(window.goatcounter && window.goatcounter.count){ window.goatcounter.count({path:name, title:name, event:true}); } }catch(e){}
+  console.log('[track]', name);
+}
+
+(function(){
+  const el=document.getElementById('termOut');
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const script=[
+    ['> ','prompt'],['look\n','cmd',450],
+    ['You stand at the mouth of a lantern-lit cavern. Passages branch north and east.\n\n','out',700],
+    ['> ','prompt'],['create ','cmd'],['"a haunted lighthouse where the fog remembers your name"\n','quote',650],
+    ['Drafting world','dim'],['…\n','dim',700],
+    ['  ✓ 9 rooms   ','ok'],['✓ 14 items   ','ok'],['✓ 4 characters\n\n','ok',500],
+    ['Draft ready — now make it yours.\n','out',400],
+    ['> ','prompt']
+  ];
+  function renderAll(){ script.forEach(t=>{const s=document.createElement('span'); if(t[1])s.className=t[1]; s.textContent=t[0]; el.appendChild(s);}); const c=document.createElement('span');c.className='caret';el.appendChild(c); }
+  if(reduce){ renderAll(); return; }
+  const caret=document.createElement('span');caret.className='caret';
+  let si=0;
+  function nextToken(){
+    if(si>=script.length){el.appendChild(caret);return;}
+    const [text,cls,pause]=script[si++];
+    const span=document.createElement('span');
+    if(cls)span.className=cls;
+    el.appendChild(span);
+    let ci=0;
+    const isFast = cls==='ok'||cls==='dim';
+    const speed = isFast?14:(cls==='out'?16:34);
+    (function type(){
+      if(ci<text.length){
+        span.textContent+=text[ci++];
+        el.scrollTop=el.scrollHeight;
+        setTimeout(type, speed + (text[ci-1]===' '?10:0));
+      }else{ setTimeout(nextToken, pause||90); }
+    })();
+  }
+  setTimeout(nextToken,500);
+})();
+
+(function(){
+  const items=document.querySelectorAll('.reveal');
+  if(!('IntersectionObserver' in window)){items.forEach(i=>i.classList.add('in'));return;}
+  const io=new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});
+  },{threshold:.15});
+  items.forEach(i=>io.observe(i));
+})();
+
+(function(){
+  const back=document.getElementById('modalBack');
+  const xBtn=document.getElementById('modalX');
+  const form=document.getElementById('leadForm');
+  const emailInput=document.getElementById('leadEmail');
+  const interest=document.getElementById('leadInterest');
+  const kicker=document.getElementById('modalKicker');
+  const title=document.getElementById('modalTitle');
+  const sub=document.getElementById('modalSub');
+  const formWrap=document.getElementById('modalForm');
+  const success=document.getElementById('modalSuccess');
+  let lastFocus=null;
+
+  const COPY={
+    creator:{ kicker:'Founding-creator list', title:'Get founding access to Creator',
+      sub:'Questora Creator is in development — not on sale yet. Join the list for first access and '+CONFIG.foundingOffer+'. No charge today.' },
+    player:{ kicker:'Free player', title:'Get the free player',
+      sub:'The free player is in early access. Drop your email and I\'ll send the download link and let you know about updates.' }
+  };
+
+  function open(kind){
+    const c=COPY[kind]||COPY.creator;
+    kicker.textContent=c.kicker; title.textContent=c.title; sub.textContent=c.sub;
+    formWrap.classList.remove('hidden'); success.classList.add('hidden');
+    form.reset(); interest.value=kind;
+    back.classList.add('open');
+    lastFocus=document.activeElement;
+    setTimeout(()=>emailInput.focus(),40);
+    track('cta_click_'+kind);
+  }
+  function close(){ back.classList.remove('open'); if(lastFocus) lastFocus.focus(); }
+  document.querySelectorAll('[data-open]').forEach(b=>{ b.addEventListener('click',()=>{
+    const kind=b.getAttribute('data-open');
+    if(kind==='player' && CONFIG.playerDownloadUrl){ track('player_download_click'); window.open(CONFIG.playerDownloadUrl,'_blank','noopener'); return; }
+    open(kind);
+  }); });
+  xBtn.addEventListener('click',close);
+  back.addEventListener('click',e=>{if(e.target===back)close();});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&back.classList.contains('open'))close();});
+
+  form.addEventListener('submit',async(e)=>{
+    e.preventDefault();
+    const email=emailInput.value.trim();
+    if(!email) return;
+    const kind=interest.value;
+    track('lead_submit_'+kind);
+    const btn=document.getElementById('leadSubmit');
+    btn.textContent='Joining…'; btn.disabled=true;
+    try{
+      if(CONFIG.formEndpoint && !CONFIG.formEndpoint.includes('REPLACE')){
+        await fetch(CONFIG.formEndpoint,{ method:'POST', headers:{'Accept':'application/json','Content-Type':'application/json'}, body:JSON.stringify({email:email, interest:kind}) });
+      }else{ console.warn('[Questora] No formEndpoint set — email NOT stored. Edit CONFIG.formEndpoint.'); }
+    }catch(err){ console.warn('[Questora] Lead POST failed:',err); }
+    formWrap.classList.add('hidden');
+    success.classList.remove('hidden');
+    btn.textContent='Join the launch list'; btn.disabled=false;
+  });
+})();
+</script>
+</body>
+</html>
